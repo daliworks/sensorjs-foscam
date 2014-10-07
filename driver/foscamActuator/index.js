@@ -56,7 +56,7 @@ function executeCommand(command, self, moreQuery, options, cb) {
   domain = self.domain;
 
   // TODO: accept user credential from UI or setting
-  query = 'cmd=' + foscamCommands[command] + '&usr=daliworks&pwd=dali123';
+  query = 'cmd=' + foscamCommands[command] + '&usr=foscam&pwd=foscam8910';
 
   if (moreQuery) {
     query += ('&' + moreQuery);
