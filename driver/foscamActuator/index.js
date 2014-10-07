@@ -71,7 +71,7 @@ function executeCommand(command, self, moreQuery, options, cb) {
 
   request.get(url, requestOptions,
       function (err, res, body) {
-        logger.info('[FoscamActuator/' + command + ']', err, res.status);
+        logger.info('[FoscamActuator/' + command + ']', err, res && res.status);
 
         if (err) {
           return cb && cb(err);
