@@ -43,9 +43,12 @@ FoscamActuator.properties = {
   supportedNetworks: ['foscam'],
   dataTypes: ['camera'],
   discoverable: false,
+  addressable: true,
   maxInstances: 5,
+  idTemplate: '{model}-{address}',
   models: ['FI9821WA'],
-  commands: ['snapPicture', 'gotoPresetDefault', 'resetPosition', 'reboot']
+  commands: ['snapPicture', 'gotoPresetDefault', 'resetPosition', 'reboot'],
+  category: 'actuator'
 };
 
 util.inherits(FoscamActuator, Actuator);

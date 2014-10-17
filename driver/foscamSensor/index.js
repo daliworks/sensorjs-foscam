@@ -20,9 +20,12 @@ FoscamSensor.properties = {
   dataTypes: ['camera'],
   onChange: false,
   discoverable: false,
+  addressable: true,
   recommendedInterval: 60000,
   maxInstances: 1,
-  models: ['FI9821WS']
+  idTemplate: '{model}-{address}',
+  models: ['FI9821WS'],
+  category: 'sensor'
 };
 
 util.inherits(FoscamSensor, Sensor);
