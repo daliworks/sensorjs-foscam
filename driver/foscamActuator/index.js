@@ -76,18 +76,12 @@ function executeCommand(command, self, moreQuery, options, cb) {
         if (err) {
           return cb && cb(err);
         } else {
-          var result, parsedBody, content;
+          var result, parsedBody, content, error, rpcError = {};
 
           if (command === 'snapPicture') { // if the result is image
             result = {
-              returnResult: {
-                contentType: 'image/jpeg',
-                content: body
-              },
-              upload: {
-                contentType: 'image/jpeg',
-                content: body
-              }
+              contentType: 'image/jpeg',
+              content: body
             };
           } else {
             try {
@@ -96,36 +90,34 @@ function executeCommand(command, self, moreQuery, options, cb) {
               logger.info('[FoscamActuator]', body, parsedBody);
 
               if (parsedBody['CGI_Result']) {
-                content = {
-                  status: parsedBody['CGI_Result'].result === 0 ? 'ok' : 'error',
-                  id: self.id,
-                  message: resultCodes[parsedBody['CGI_Result'].result]
-                };
+                if (parsedBody['CGI_Result'].result === 0) {
+                  content = resultCodes[parsedBody['CGI_Result'].result];
+                } else {
+                  error = resultCodes[parsedBody['CGI_Result'].result] || 'unknown error';
+                }
               } else {
-                content = {
-                  status: 'error',
-                  id: self.id,
-                  message: 'No CGI Result'
-                };
+                error = 'No CGI Result';
               }
             } catch(e) {
               logger.error('[FoscamActuator] JSON parsing error with command response', body, e);
-              content = {
-                status: 'error',
-                id: self.id,
-                message: 'JSON Parsing error with command response'
-              };
+              error = 'JSON Parsing error with command response';
             }
 
-            result = {
-              returnResult: {
+            if (error) {
+              /* "JSON-RPC 2.0" Compatible Format for a response(error) : { id: , error: { code:, message: } } */
+              rpcError.code = -32000;
+              rpcError.message = error.toString();
+
+              logger.debug('[FoscamActuator - Command] / error', command, rpcError);
+            } else {
+              result = {
                 contentType: 'text/plain',
                 content: content
-              }
-            };
+              };
+            }
           }
 
-          return cb && cb(null, result);
+          return cb && cb(rpcError, result);
         }
       });
 }
