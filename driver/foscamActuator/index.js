@@ -1,8 +1,7 @@
 'use strict';
 var util = require('util'),
-    _ = require('lodash'),
     request = require('request'),
-    parser = require('xml2json');
+    parseString = require('xml2js').parseString;
 
 var SensorLib = require('../../index'),
     Actuator = SensorLib.Actuator,
@@ -22,7 +21,7 @@ var foscamCommands = {
 };
 
 var resultCodes = {
-  0: 'Success',
+  '0': 'Success',
   '-1': 'CGI request string format error',
   '-2': 'Username or password error',
   '-3': 'Access deny',
@@ -72,57 +71,56 @@ function executeCommand(command, self, moreQuery, options, cb) {
     requestOptions = { encoding: null };
   }
 
-  request.get(url, requestOptions,
-      function (err, res, body) {
-        logger.info('[FoscamActuator/' + command + ']', err, res && res.status);
+  request.get(url, requestOptions, function (err, res, body) {
+    logger.info('[FoscamActuator/' + command + ']', err, res && res.status);
 
-        if (err) {
-          return cb && cb(err);
-        } else {
-          var result, parsedBody, content, error, rpcError = {};
+    if (err) {
+      return cb && cb(err);
+    }
+    var result;
 
-          if (command === 'snapPicture') { // if the result is image
-            result = {
-              contentType: 'image/jpeg',
-              content: body
-            };
+    if (command === 'snapPicture') { // if the result is image
+      result = {
+        contentType: 'image/jpeg',
+        content: body
+      };
+      return cb && cb(null, result);
+    } 
+
+    parseString(body, function (err, parsedBody) {
+      var content, error, rpcError = {};
+      if (err) {
+        logger.error('[FoscamActuator] JSON parsing error with command response', body, err);
+        error = 'JSON Parsing error with command response';
+      } else {
+        logger.info('[FoscamActuator]', body, parsedBody);
+
+        if (parsedBody['CGI_Result']) {
+          if (parsedBody['CGI_Result'].result.toString() === '0') {
+            content = resultCodes[parsedBody['CGI_Result'].result.toString()];
           } else {
-            try {
-              parsedBody = JSON.parse(parser.toJson(body));
-
-              logger.info('[FoscamActuator]', body, parsedBody);
-
-              if (parsedBody['CGI_Result']) {
-                if (parsedBody['CGI_Result'].result === 0) {
-                  content = resultCodes[parsedBody['CGI_Result'].result];
-                } else {
-                  error = resultCodes[parsedBody['CGI_Result'].result] || 'unknown error';
-                }
-              } else {
-                error = 'No CGI Result';
-              }
-            } catch(e) {
-              logger.error('[FoscamActuator] JSON parsing error with command response', body, e);
-              error = 'JSON Parsing error with command response';
-            }
-
-            if (error) {
-              /* "JSON-RPC 2.0" Compatible Format for a response(error) : { id: , error: { code:, message: } } */
-              rpcError.code = -32000;
-              rpcError.message = error.toString();
-
-              logger.debug('[FoscamActuator - Command] / error', command, rpcError);
-            } else {
-              result = {
-                contentType: 'text/plain',
-                content: content
-              };
-            }
+            error = resultCodes[parsedBody['CGI_Result'].result.toString()] || 'unknown error';
           }
-
-          return cb && cb(rpcError, result);
+        } else {
+          error = 'No CGI Result';
         }
-      });
+      }
+      if (error) {
+        /* "JSON-RPC 2.0" Compatible Format for a response(error) : { id: , error: { code:, message: } } */
+        rpcError.code = -32000;
+        rpcError.message = error.toString();
+
+        logger.debug('[FoscamActuator - Command] / error', command, rpcError);
+      } else {
+        result = {
+          contentType: 'text/plain',
+          content: content
+        };
+      }
+
+      return cb && cb(rpcError, result);
+    });
+  });
 }
 
 FoscamActuator.prototype.snapPicture = function (options, cb) {
