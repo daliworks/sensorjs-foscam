@@ -23,7 +23,7 @@ FoscamSensor.properties = {
   addressable: true,
   recommendedInterval: 60000,
   maxInstances: 1,
-  idTemplate: '{model}-{address}',
+  idTemplate: '{model}-{gatewayId}-{deviceAddress}',
   models: ['FI9821WS'],
   category: 'sensor'
 };

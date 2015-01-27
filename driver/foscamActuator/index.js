@@ -44,7 +44,7 @@ FoscamActuator.properties = {
   discoverable: false,
   addressable: true,
   maxInstances: 5,
-  idTemplate: '{model}-{address}',
+  idTemplate: '{model}-{gatewayId}-{deviceAddress}',
   models: ['FI9821WA'],
   commands: ['snapPicture', 'gotoPresetDefault', 'resetPosition', 'reboot'],
   category: 'actuator'
