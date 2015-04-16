@@ -88,7 +88,7 @@ function executeCommand(command, self, moreQuery, options, cb) {
     } 
 
     parseString(body, function (err, parsedBody) {
-      var content, error, rpcError = {};
+      var content, error, rpcError = null;
       if (err) {
         logger.error('[FoscamActuator] JSON parsing error with command response', body, err);
         error = 'JSON Parsing error with command response';
@@ -107,10 +107,11 @@ function executeCommand(command, self, moreQuery, options, cb) {
       }
       if (error) {
         /* "JSON-RPC 2.0" Compatible Format for a response(error) : { id: , error: { code:, message: } } */
+        rpcError = {};
         rpcError.code = -32000;
         rpcError.message = error.toString();
 
-        logger.debug('[FoscamActuator - Command] / error', command, rpcError);
+        logger.error('[FoscamActuator - Command] / error', command, rpcError);
       } else {
         result = {
           contentType: 'text/plain',
