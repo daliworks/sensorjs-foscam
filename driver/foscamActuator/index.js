@@ -1,6 +1,9 @@
 'use strict';
 var util = require('util'),
-    request = require('request'),
+    url = require('url'),
+    http = require('http'),
+    https = require('https'),
+    _ = require('lodash'),
     parseString = require('xml2js').parseString;
 
 var SensorLib = require('../../index'),
@@ -52,8 +55,66 @@ FoscamActuator.properties = {
 
 util.inherits(FoscamActuator, Actuator);
 
+function restAgent(rurl, options, cb) {
+  var parsedUrl, body, opts, requester;
+
+  if (foscamCGIInfo.protocol === 'http') {
+    requester = http;
+  } else if (foscamCGIInfo.protocol === 'https') {
+    requester = https;
+  }
+
+  logger.info('[restAgent] rurl, options', rurl, options);
+  if (!requester) {
+    logger.warn('[restAgent] requester not ready');
+    return cb && cb(new Error('requester not ready'));
+  }
+
+  parsedUrl = url.parse(rurl,
+    false,  // do not parse QUERY_STRING
+    true    // do parse HOST and PATH
+  );
+  body = JSON.stringify(options.body);
+  delete options.body;
+  opts = _.cloneDeep(options);
+
+  opts = _.merge(opts, parsedUrl);
+  if (!opts.hostname) {
+    opts.hostname = parsedUrl.host;
+  }
+  opts.path = parsedUrl.pathname + (parsedUrl.search ? parsedUrl.search : '');
+  logger.info('[restAgent] opts', opts);
+
+  if (body) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.headers['Content-Length'] = Buffer.byteLength(body);
+  }
+
+  var req = requester.request(opts, function(res) {
+    var resBody = [];
+    res.on('data', function(chunk) {
+      resBody.push(chunk);
+    });
+    res.on('end', function() {
+      var buffer = Buffer.concat(resBody);
+      logger.info('[restAgent] req.headers', res.req._headers);
+      logger.info('[restAgent] res.headers', res.headers);
+      return cb && cb(null, res, buffer);
+    });
+  });
+  if (body) {
+    req.write(body);
+  }
+  req.end();
+
+  req.on('error', function(e) {
+    logger.error('[restAgent] REQ error', e, e.stack);
+    return cb && cb(e);
+  });
+}
+
 function executeCommand(command, self, moreQuery, options, cb) {
-  var domain, query, url, requestOptions;
+  var domain, query, url, requestOptions, requester;
 
   domain = self.domain;
 
@@ -68,10 +129,10 @@ function executeCommand(command, self, moreQuery, options, cb) {
 
   // if the result is image
   if (command === 'snapPicture') {
-    requestOptions = { encoding: null };
+    requestOptions = { encoding: null, method: 'GET' };
   }
 
-  request.get(url, requestOptions, function (err, res, body) {
+  restAgent(url, requestOptions, function (err, res, body) {
     logger.info('[FoscamActuator/' + command + ']', err, res && res.status);
 
     if (err) {
